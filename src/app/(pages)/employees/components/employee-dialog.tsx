@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +17,8 @@ import axios from 'axios';
 interface EmployeeDialogProps {
   employee?: Employee;
   onSuccess: () => void;
-  // Fungsi submit sekarang datang dari hook melalui props
-  submitAction: (
-    action: 'create' | 'update',
-    data: EmployeeFormValues,
-    id?: number
-  ) => Promise<any>;
+  // Prop baru untuk menerima fungsi submit dari hook
+  submitAction: (action: 'create' | 'update', data: EmployeeFormValues, id?: number) => Promise<any>;
   children: React.ReactNode;
 }
 

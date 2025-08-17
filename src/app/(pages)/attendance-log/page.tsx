@@ -12,9 +12,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAttendanceLog, AttendanceLog } from '@/hooks/use-attendance-log';
 import { LogFilters } from './components/log-filters';
 import { format } from 'date-fns';
-// Perbaikan: Ganti cara import menjadi seperti ini
 import { mkConfig, generateCsv, download } from 'export-to-csv';
 import { Button } from '@/components/ui/button';
+
+// 🔧 Helper untuk normalisasi menit
+const normalizeMinutes = (value: number | null | undefined): number => {
+  if (!value) return 0;
+  // Jika backend kirim dalam detik, aktifkan pembagian 60
+  return Math.round(value >= 60 ? value / 60 : value);
+};
+
+// 🔧 Helper untuk waktu
+const formatTime = (dateTimeString: string | null) => {
+  if (!dateTimeString) return '-';
+  return format(new Date(dateTimeString.replace(' ', 'T')), 'HH:mm:ss');
+};
 
 export default function AttendanceLogPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -30,36 +42,37 @@ export default function AttendanceLogPage() {
       return;
     }
 
-    // Siapkan data dalam format yang diinginkan
     const dataToExport = logData.data.map(log => ({
       nama_karyawan: log.employee.name,
       departemen: log.employee.department.name,
       tanggal: format(new Date(log.clock_in.replace(' ', 'T')), 'yyyy-MM-dd'),
-      clock_in: format(new Date(log.clock_in.replace(' ', 'T')), 'HH:mm:ss'),
-      clock_out: log.clock_out ? format(new Date(log.clock_out.replace(' ', 'T')), 'HH:mm:ss') : '',
+      clock_in: formatTime(log.clock_in),
+      clock_out: log.clock_out ? formatTime(log.clock_out) : '',
       status: log.status,
-      terlambat: log.lateness_minutes,
-      lembur: log.overtime_minutes,
-      pulang_cepat: log.early_leave_minutes,
+      terlambat: normalizeMinutes(log.lateness_minutes),
+      lembur: normalizeMinutes(log.overtime_minutes),
+      pulang_cepat: normalizeMinutes(log.early_leave_minutes),
     }));
 
-    // Konfigurasi untuk file CSV
     const csvConfig = mkConfig({
       fieldSeparator: ',',
       filename: `laporan-absensi-${formattedDate || 'semua'}`,
-      columnHeaders: ['Nama Karyawan', 'Departemen', 'Tanggal', 'Clock In', 'Clock Out', 'Status', 'Terlambat (Menit)', 'Lembur (Menit)', 'Pulang Cepat (Menit)'],
+      columnHeaders: [
+        'Nama Karyawan', 
+        'Departemen', 
+        'Tanggal', 
+        'Clock In', 
+        'Clock Out', 
+        'Status', 
+        'Terlambat (Menit)', 
+        'Lembur (Menit)', 
+        'Pulang Cepat (Menit)'
+      ],
       useKeysAsHeaders: false,
     });
 
-    // Buat data CSV dari array objek
     const csv = generateCsv(csvConfig)(dataToExport);
-    // Unduh file CSV
     download(csvConfig)(csv);
-  };
-
-  const formatTime = (dateTimeString: string | null) => {
-    if (!dateTimeString) return '-';
-    return format(new Date(dateTimeString.replace(' ', 'T')), 'HH:mm:ss');
   };
 
   return (
@@ -92,8 +105,20 @@ export default function AttendanceLogPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={5} className="text-center">Memuat data...</TableCell></TableRow>}
-                {isError && <TableRow><TableCell colSpan={5} className="text-center text-red-600">Gagal memuat data.</TableCell></TableRow>}
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      Memuat data...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {isError && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-red-600">
+                      Gagal memuat data.
+                    </TableCell>
+                  </TableRow>
+                )}
                 {!isLoading && logData?.data.map((log: AttendanceLog) => (
                   <TableRow key={log.id}>
                     <TableCell>
@@ -104,20 +129,29 @@ export default function AttendanceLogPage() {
                     <TableCell>{formatTime(log.clock_out)}</TableCell>
                     <TableCell>{log.status}</TableCell>
                     <TableCell className="text-sm">
-                      {log.lateness_minutes > 0 && <div>Terlambat: {log.lateness_minutes}</div>}
-                      {log.overtime_minutes > 0 && <div>Lembur: {log.overtime_minutes}</div>}
-                      {log.early_leave_minutes > 0 && <div>Pulang Cepat: {log.early_leave_minutes}</div>}
+                      {normalizeMinutes(log.lateness_minutes) > 0 && (
+                        <div>Terlambat: {normalizeMinutes(log.lateness_minutes)} menit</div>
+                      )}
+                      {normalizeMinutes(log.overtime_minutes) > 0 && (
+                        <div>Lembur: {normalizeMinutes(log.overtime_minutes)} menit</div>
+                      )}
+                      {normalizeMinutes(log.early_leave_minutes) > 0 && (
+                        <div>Pulang Cepat: {normalizeMinutes(log.early_leave_minutes)} menit</div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
                 {!isLoading && (!logData || logData.data.length === 0) && (
-                  <TableRow><TableCell colSpan={5} className="text-center">Tidak ada data absensi yang ditemukan.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      Tidak ada data absensi yang ditemukan.
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
           
-          {/* Paginasi */}
           <div className="flex items-center justify-end space-x-2 py-4">
             <Button
               variant="outline"

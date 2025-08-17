@@ -12,23 +12,65 @@ import { useEmployees } from '@/hooks/use-employees';
 import { EmployeeTable } from './components/employee-table';
 import { PlusCircle } from 'lucide-react';
 import { EmployeeDialog } from './components/employee-dialog';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+// Komponen Skeleton untuk memberikan feedback visual saat loading
+function EmployeeTableSkeleton() {
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nama Karyawan</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Posisi</TableHead>
+            <TableHead>Departemen</TableHead>
+            <TableHead className="text-right">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 10 }).map((_, index) => (
+            <TableRow key={index}>
+              <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 
 export default function EmployeePage() {
   const { employees, isLoading, isError, mutate, submitEmployee } = useEmployees();
 
   const renderContent = () => {
-    if (isLoading) return <div className="text-center p-4">Loading data karyawan...</div>;
-    if (isError) return <div className="text-center p-4 text-red-600">Gagal memuat data.</div>;
+    // Gunakan isLoading dari SWR sebagai satu-satunya penentu
+    // Ini adalah cara paling andal
+    if (isLoading) {
+      return <EmployeeTableSkeleton />;
+    }
+
+    if (isError) {
+      return <div className="text-center p-4 text-red-600">Gagal memuat data. Silakan coba lagi.</div>;
+    }
 
     if (!employees || employees.length === 0) {
       return (
         <div className="text-center p-4">
           <p className="mb-4">Belum ada data karyawan.</p>
-          <EmployeeDialog onSuccess={mutate} submitAction={submitEmployee}>
             <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Tambah Karyawan
             </Button>
-          </EmployeeDialog>
         </div>
       );
     }

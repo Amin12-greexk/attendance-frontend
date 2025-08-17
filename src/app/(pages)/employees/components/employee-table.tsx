@@ -17,8 +17,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Employee } from '@/hooks/use-employees';
 import { MoreHorizontal } from 'lucide-react';
-import { EmployeeDialog } from './employee-dialog'; // <-- Import EmployeeDialog
-import { ConfirmationDialog } from '../../departments/components/confirmation-dialog'; // <-- Kita pakai lagi confirmation dialog
+import { EmployeeDialog } from './employee-dialog';
+import { ConfirmationDialog } from '../../departments/components/confirmation-dialog';
+import { EmployeeFormValues } from './employee-form';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -31,14 +32,15 @@ function getCookie(name: string): string | null {
   return null;
 }
 
+
 interface EmployeeTableProps {
   employees: Employee[];
-  onSuccess: () => void; // Tambahkan prop onSuccess
+  onSuccess: () => void;
+  submitAction: (action: 'create' | 'update', data: EmployeeFormValues, id?: number) => Promise<any>;
 }
 
-export function EmployeeTable({ employees, onSuccess }: EmployeeTableProps) {
-
-  // Buat fungsi untuk menangani aksi hapus
+export function EmployeeTable({ employees, onSuccess, submitAction }: EmployeeTableProps) {
+  // Logika lengkap untuk menghapus karyawan
   const handleDelete = async (employeeId: number) => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '');
@@ -66,13 +68,13 @@ export function EmployeeTable({ employees, onSuccess }: EmployeeTableProps) {
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Nama Karyawan</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Posisi</TableHead>
-            <TableHead>Departemen</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
-          </TableRow>
+            <TableRow>
+                <TableHead>Nama Karyawan</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Posisi</TableHead>
+                <TableHead>Departemen</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
         </TableHeader>
         <TableBody>
           {employees.map((employee) => (
@@ -85,19 +87,16 @@ export function EmployeeTable({ employees, onSuccess }: EmployeeTableProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Buka menu</span>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {/* Logika untuk Edit */}
-                    <EmployeeDialog employee={employee} onSuccess={onSuccess}>
+                    <EmployeeDialog employee={employee} onSuccess={onSuccess} submitAction={submitAction}>
                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                         Edit
                       </DropdownMenuItem>
                     </EmployeeDialog>
-                    
-                    {/* Logika untuk Hapus */}
+                    {/* Integrasi lengkap untuk Hapus */}
                     <ConfirmationDialog
                       title="Apakah Anda Yakin?"
                       description={`Data karyawan "${employee.name}" akan dihapus secara permanen.`}

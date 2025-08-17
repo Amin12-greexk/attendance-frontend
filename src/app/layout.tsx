@@ -47,6 +47,9 @@ export default function RootLayout({
              <Link href="/attendance-log" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
             Log Absensi
           </Link>
+           <Link href="/manual-entry" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+    Entri Manual
+  </Link>
             </nav>
           </div>
         </header>
