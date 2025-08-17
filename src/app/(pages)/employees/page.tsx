@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,95 +8,107 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useEmployees } from '@/hooks/use-employees';
 import { EmployeeTable } from './components/employee-table';
-import { PlusCircle } from 'lucide-react';
 import { EmployeeDialog } from './components/employee-dialog';
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmployeeFormValues } from './components/employee-form';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
+import axios from 'axios';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Komponen Skeleton untuk memberikan feedback visual saat loading
-function EmployeeTableSkeleton() {
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nama Karyawan</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Posisi</TableHead>
-            <TableHead>Departemen</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 10 }).map((_, index) => (
-            <TableRow key={index}>
-              <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end">
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+// Fungsi helper getCookie
+function getCookie(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
 }
 
+export default function EmployeesPage() {
+  // State untuk menyimpan nomor halaman saat ini
+  const [page, setPage] = useState(1);
+  const { paginatedEmployees, isLoading, isError, mutate } = useEmployees(page);
 
-export default function EmployeePage() {
-  const { employees, isLoading, isError, mutate, submitEmployee } = useEmployees();
+  const handleSubmitAction = async (action: 'create' | 'update', data: EmployeeFormValues, id?: number) => {
+    const toastId = toast.loading(action === 'create' ? 'Menambahkan karyawan...' : 'Memperbarui karyawan...');
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '');
+      await axios.get(`${backendUrl}/sanctum/csrf-cookie`, { withCredentials: true });
+      const xsrfToken = getCookie('XSRF-TOKEN');
+      if (!xsrfToken) throw new Error("Token CSRF tidak ditemukan");
 
-  const renderContent = () => {
-    // Gunakan isLoading dari SWR sebagai satu-satunya penentu
-    // Ini adalah cara paling andal
-    if (isLoading) {
-      return <EmployeeTableSkeleton />;
+      const headers = { 'X-XSRF-TOKEN': decodeURIComponent(xsrfToken) };
+      const url = action === 'create' ? '/employees' : `/employees/${id}`;
+      const method = action === 'create' ? 'post' : 'put';
+
+      await api[method](url, data, { headers });
+
+      toast.success(`Karyawan berhasil ${action === 'create' ? 'ditambahkan' : 'diperbarui'}!`, { id: toastId });
+      mutate(); // Memuat ulang data di halaman saat ini
+    } catch (error: any) {
+      console.error(error);
+      const errorMessage = error.response?.data?.message || `Gagal ${action === 'create' ? 'menambahkan' : 'memperbarui'} karyawan.`;
+      toast.error(errorMessage, { id: toastId });
+      throw error;
     }
-
-    if (isError) {
-      return <div className="text-center p-4 text-red-600">Gagal memuat data. Silakan coba lagi.</div>;
-    }
-
-    if (!employees || employees.length === 0) {
-      return (
-        <div className="text-center p-4">
-          <p className="mb-4">Belum ada data karyawan.</p>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Karyawan
-            </Button>
-        </div>
-      );
-    }
-
-    return <EmployeeTable employees={employees} onSuccess={mutate} submitAction={submitEmployee} />;
   };
 
   return (
     <div className="p-4 md:p-8">
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle>Manajemen Karyawan</CardTitle>
-              <CardDescription>
-                Lihat, tambah, edit, atau hapus data karyawan perusahaan.
-              </CardDescription>
-            </div>
-            <EmployeeDialog onSuccess={mutate} submitAction={submitEmployee}>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Karyawan
-                </Button>
-            </EmployeeDialog>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Manajemen Karyawan</CardTitle>
+            <CardDescription>
+              Tambah, edit, atau hapus data karyawan.
+            </CardDescription>
           </div>
+          <EmployeeDialog onSuccess={mutate} submitAction={handleSubmitAction}>
+            <Button>Tambah Karyawan</Button>
+          </EmployeeDialog>
         </CardHeader>
-        <CardContent>{renderContent()}</CardContent>
+        <CardContent>
+          {isLoading && (
+            <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+          )}
+          {isError && <p className="text-center text-red-600">Gagal memuat data karyawan.</p>}
+          
+          {/* Tampilkan tabel dan tombol paginasi hanya jika data berhasil dimuat */}
+          {!isLoading && paginatedEmployees && (
+            <>
+              <EmployeeTable
+                employees={paginatedEmployees.data}
+                onSuccess={mutate}
+                submitAction={handleSubmitAction}
+              />
+            <div className="flex items-center justify-end space-x-2 py-4">
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => setPage(page - 1)}
+    disabled={!paginatedEmployees.prev_page_url}
+  >
+    Sebelumnya
+  </Button>
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => setPage(page + 1)}
+    disabled={!paginatedEmployees.next_page_url}
+  >
+    Selanjutnya
+  </Button>
+</div>
+
+            </>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

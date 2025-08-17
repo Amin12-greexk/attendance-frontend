@@ -15,17 +15,16 @@ import { format } from 'date-fns';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
 import { Button } from '@/components/ui/button';
 
-// 🔧 Helper untuk normalisasi menit
+// ✅ PERBAIKAN: Fungsi ini sekarang hanya menangani nilai null/undefined.
 const normalizeMinutes = (value: number | null | undefined): number => {
-  if (!value) return 0;
-  // Jika backend kirim dalam detik, aktifkan pembagian 60
-  return Math.round(value >= 60 ? value / 60 : value);
+  return value || 0;
 };
 
-// 🔧 Helper untuk waktu
+// Helper untuk waktu
 const formatTime = (dateTimeString: string | null) => {
   if (!dateTimeString) return '-';
-  return format(new Date(dateTimeString.replace(' ', 'T')), 'HH:mm:ss');
+  // Menambahkan 'Z' untuk memastikan parsing sebagai UTC dan konversi ke waktu lokal yang benar
+  return format(new Date(dateTimeString.replace(' ', 'T') + 'Z'), 'HH:mm:ss');
 };
 
 export default function AttendanceLogPage() {
@@ -45,7 +44,7 @@ export default function AttendanceLogPage() {
     const dataToExport = logData.data.map(log => ({
       nama_karyawan: log.employee.name,
       departemen: log.employee.department.name,
-      tanggal: format(new Date(log.clock_in.replace(' ', 'T')), 'yyyy-MM-dd'),
+      tanggal: format(new Date(log.clock_in.replace(' ', 'T') + 'Z'), 'yyyy-MM-dd'),
       clock_in: formatTime(log.clock_in),
       clock_out: log.clock_out ? formatTime(log.clock_out) : '',
       status: log.status,
